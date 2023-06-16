@@ -1,2 +1,2 @@
-# blog2book
-Convert your blog articles to an book via latex
+# wp2latex
+Convert your wordpress blog articles to books, journals, etc. via LaTeX and this tool.
