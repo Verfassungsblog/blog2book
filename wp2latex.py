@@ -6,15 +6,14 @@ import my_globals
 
 biblatex_entries = ""
 
-def main():
-    my_globals.init()
 
+def cli_main():
     parser = argparse.ArgumentParser(prog="wp2latex", usage="Convert your wordpress blog posts to LaTeX projects")
-    parser.add_argument('--with-footnotes', action='store_true')
-    parser.add_argument('--endnotes', action='store_true')
-    parser.add_argument('--first-letter-before')
-    parser.add_argument('--first-letter-after')
-    parser.add_argument('--project-template')
+    parser.add_argument('--with-footnotes', action='store_true', help='Converts footnotes, currently only wordpress.org/plugins/footnotes/ is supported.')
+    parser.add_argument('--endnotes', action='store_true', help='if given, use endnotes instead of footnotes')
+    parser.add_argument('--first-letter-before', help='latex code to be put before the first letter of [wp2latex-post-content] in single_post.tex template')
+    parser.add_argument('--first-letter-after', help='latex code to be put after first letter of [wp2latex-post-content]')
+    parser.add_argument('--project-template', help='must be supplied if url is a category, creates whole latex project instead of single output file')
     parser.add_argument('--output')
     parser.add_argument('--convert-links-to-citations', action='store_true')
     parser.add_argument('--unnumbered-headings', action='store_true')
@@ -54,10 +53,10 @@ def main():
 
         for url in args.uris:
             if wp_import.check_if_url_is_category(url):
-                print("Found category url: "+url)
-                host,slug = wp_import.get_category_host_slug_from_url(url)
-                category_id = wp_import.get_category_id_from_slug(host,slug)
-                post_slugs = wp_import.get_post_slugs_in_category(host,category_id)
+                print("Found category url: " + url)
+                host, slug = wp_import.get_category_host_slug_from_url(url)
+                category_id = wp_import.get_category_id_from_slug(host, slug)
+                post_slugs = wp_import.get_post_slugs_in_category(host, category_id)
                 for post_slug in post_slugs:
                     wp_import.download_post(host, post_slug, args, posts_directory, post_count)
                     include_list += "\\include{posts/" + "post_" + str(post_count) + "}\n"
@@ -69,24 +68,22 @@ def main():
                 post_count = post_count + 1
 
         # add include_list to main.tex
-        with open(output_path+"/main.tex", "r+") as f:
+        with open(output_path + "/main.tex", "r+") as f:
             content = f.read()
             f.seek(0)
             f.truncate()
             f.write(content.replace("[wp2latex-file-includes]", include_list))
 
-
-        #add biblatex file if required
-        print(my_globals.biblatex_entries)
+        # add biblatex file if required
         if len(my_globals.biblatex_entries) > 0:
-            with open(output_path+"/bibliography.bib", "x") as f:
+            with open(output_path + "/bibliography.bib", "x") as f:
                 f.write(my_globals.biblatex_entries)
 
 
     else:
         print("Downloading " + args.uris[0])
         host, slug = wp_import.get_host_slug_from_url(args.uris[0])
-        post_in_latex = wp_import.generate_post(wp_import.import_post(host, slug, args))
+        post_in_latex = wp_import.generate_post(wp_import.import_post(host, slug, args), args)
 
         output_path = ""
         if args.output:
@@ -104,8 +101,24 @@ def main():
         with open(output_path, "x", encoding="utf-8") as f:
             f.write(post_in_latex)
 
-        print("Saved output to " + output_path)
+        print("Saved post to " + output_path)
+
+        if len(my_globals.biblatex_entries) > 0:
+            bib_output_path = "bibliography.bib"
+            if os.path.exists("bibliography.bib"):
+                x = 1
+                while os.path.exists("bibliography_" + str(x) + ".bib"):
+                    x = x + 1
+
+                bib_output_path = "bibliography_" + str(x) + ".bib"
+
+
+            with open(bib_output_path, "x") as f:
+                f.write(my_globals.biblatex_entries)
+
+            print("Saved bibliography as "+bib_output_path)
 
 
 if __name__ == '__main__':
-    main()
+    my_globals.init()
+    cli_main()
