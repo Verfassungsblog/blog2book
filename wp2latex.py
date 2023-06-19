@@ -2,9 +2,13 @@ import os
 import shutil
 import wp_import
 import argparse
+import my_globals
 
+biblatex_entries = ""
 
 def main():
+    my_globals.init()
+
     parser = argparse.ArgumentParser(prog="wp2latex", usage="Convert your wordpress blog posts to LaTeX projects")
     parser.add_argument('--with-footnotes', action='store_true')
     parser.add_argument('--endnotes', action='store_true')
@@ -12,6 +16,10 @@ def main():
     parser.add_argument('--first-letter-after')
     parser.add_argument('--project-template')
     parser.add_argument('--output')
+    parser.add_argument('--convert-links-to-citations', action='store_true')
+    parser.add_argument('--unnumbered-headings', action='store_true')
+    parser.add_argument('--cite-command', default="\\footfullcite")
+    parser.add_argument('--translation-server', default="https://translation-server.anghenfil.de")
     parser.add_argument('uris', nargs='+')
     args = parser.parse_args()
 
@@ -51,12 +59,12 @@ def main():
                 category_id = wp_import.get_category_id_from_slug(host,slug)
                 post_slugs = wp_import.get_post_slugs_in_category(host,category_id)
                 for post_slug in post_slugs:
-                    wp_import.download_post(host, post_slug, args, posts_directory, post_count, include_list)
+                    wp_import.download_post(host, post_slug, args, posts_directory, post_count)
                     include_list += "\\include{posts/" + "post_" + str(post_count) + "}\n"
                     post_count = post_count + 1
             else:
                 host, slug = wp_import.get_host_slug_from_url(url)
-                wp_import.download_post(host, slug, args, posts_directory, post_count, include_list)
+                wp_import.download_post(host, slug, args, posts_directory, post_count)
                 include_list += "\\include{posts/" + "post_" + str(post_count) + "}\n"
                 post_count = post_count + 1
 
@@ -66,6 +74,14 @@ def main():
             f.seek(0)
             f.truncate()
             f.write(content.replace("[wp2latex-file-includes]", include_list))
+
+
+        #add biblatex file if required
+        print(my_globals.biblatex_entries)
+        if len(my_globals.biblatex_entries) > 0:
+            with open(output_path+"/bibliography.bib", "x") as f:
+                f.write(my_globals.biblatex_entries)
+
 
     else:
         print("Downloading " + args.uris[0])

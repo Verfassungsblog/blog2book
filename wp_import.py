@@ -2,6 +2,10 @@ import requests
 import urllib
 from bs4 import BeautifulSoup
 import pypandoc
+import re
+import link_citation_converter
+import uuid
+import my_globals
 
 
 def import_post(host, slug, args):
@@ -51,6 +55,8 @@ def import_post(host, slug, args):
     raw_html = soup.__str__()
     result = pypandoc.convert_text(raw_html, 'tex', format='html', extra_args=["--shift-heading-level-by=-1"])
 
+    result = result.replace("\\%", "%")
+
     if args.with_footnotes:
         for footnote_count in range(len(footnotes_dict) - 1, -1, -1):
             command_start = ""
@@ -69,13 +75,46 @@ def import_post(host, slug, args):
     if args.first_letter_after:
         first_letter += args.first_letter_after
 
-    result = first_letter + " " + result[1:]
+    if args.first_letter_after or args.first_letter_before:
+        result = first_letter + " " + result[1:]
+
+    if args.convert_links_to_citations:
+        pattern = r'\\href\{([^}]+)\}\{([^}]+)\}'
+        links = re.findall(pattern, result)
+
+        for link in links:
+            url = link[0]
+            link_text = link[1]
+            print("URL:", url)
+            print("Link-Text:", link_text)
+            biblatex_entry = link_citation_converter.convert_link_to_bibtex(url, args.translation_server)
+            if not biblatex_entry:
+                print("Couldn't convert Link " + url + " to Citation!")
+                continue
+
+            new_biblatex_uuid = uuid.uuid4()
+            while new_biblatex_uuid in my_globals.biblatex_uuids:
+                new_biblatex_uuid = uuid.uuid4()
+
+            my_globals.biblatex_uuids.append(new_biblatex_uuid)
+
+            biblatex_id_pattern = r"@\w+{([^,]+)"
+            biblatex_id_raw = re.search(biblatex_id_pattern, str(biblatex_entry))
+            if not biblatex_id_raw:
+                print("Couldn't convert Link " + url + " to Citation!")
+                continue
+
+            old_biblatex_id = biblatex_id_raw.group(1)
+            biblatex_entry = biblatex_entry.replace(old_biblatex_id, str(new_biblatex_uuid))
+            my_globals.biblatex_entries += str(biblatex_entry)
+            result = result.replace("\\href{" + url + "}{" + link_text + "}",
+                                    " " + link_text + args.cite_command+"{" + str(new_biblatex_uuid) + "}")
 
     post_data["content"] = result
     return post_data
 
 
-def generate_post(post_data):
+def generate_post(post_data, args):
     post_template = ""
     with open("latex-templates/single_post.tex", 'r', encoding="utf-8") as f:
         post_template = f.read()
@@ -90,6 +129,12 @@ def generate_post(post_data):
         .replace("[wp2latex-post-authors]", authors_string) \
         .replace("[wp2latex-post-url]", post_data["link"]) \
         .replace("[wp2latex-post-content]", post_data["content"])
+
+    # Add \printendnotes if endnotes activated and there is at least one endnote
+    if args.endnotes and (result.find("\\endnote") != -1 or result.find(args.cite_command) != -1):
+        result = result.replace("[wp2latex-print-endnotes-if-any]", "\\printendnotes")
+    else:
+        result = result.replace("[wp2latex-print-endnotes-if-any]", "")
 
     return result
 
@@ -143,8 +188,8 @@ def get_post_slugs_in_category(host, category_id):
     return post_slugs
 
 
-def download_post(host, slug, args, posts_directory, post_count, include_list):
+def download_post(host, slug, args, posts_directory, post_count):
     print("Downloading post " + slug)
-    post_in_latex = generate_post(import_post(host, slug, args))
+    post_in_latex = generate_post(import_post(host, slug, args), args)
     with open(posts_directory + "/post_" + str(post_count) + ".tex", "x", encoding="utf-8") as f:
         f.write(post_in_latex)
