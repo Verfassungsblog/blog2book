@@ -22,7 +22,7 @@ def cli_main():
     parser.add_argument('uris', nargs='+')
     args = parser.parse_args()
 
-    if len(args.uris) > 1:
+    if len(args.uris) > 1 or wp_import.check_if_url_is_category(args.uris[0]):
         if not args.project_template:
             print("Error: Project template required if more than one uri supplied!")
             exit(-1)
