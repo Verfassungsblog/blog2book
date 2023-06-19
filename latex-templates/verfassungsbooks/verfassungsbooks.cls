@@ -36,6 +36,14 @@ footskip=1cm,
 \RequirePackage{scrextend}
 \RequirePackage{ragged2e}
 \RequirePackage{tocloft}
+\RequirePackage[
+backend=biber,
+style=apa6,
+natbib=true,
+ibidtracker=true,
+]{biblatex}
+
+\let\footnote\endnote%
 
 \definecolor{hyperlinkgray}{gray}{0.35}
 
