@@ -4,16 +4,32 @@ import wp_import
 import argparse
 import my_globals
 
-biblatex_entries = ""
+
+def find_free_path(preferred_path, file_extension = ""):
+    if not os.path.exists(preferred_path+file_extension):
+        output_path = preferred_path+file_extension
+    else:
+        x = 1
+        while os.path.exists(preferred_path + "_" + str(x)+file_extension):
+            x = x + 1
+        output_path = preferred_path + "_" + str(x)+file_extension
+
+    return output_path
 
 
 def cli_main():
     parser = argparse.ArgumentParser(prog="wp2latex", usage="Convert your wordpress blog posts to LaTeX projects")
-    parser.add_argument('--with-footnotes', action='store_true', help='Converts footnotes, currently only wordpress.org/plugins/footnotes/ is supported.')
+    parser.add_argument('--with-footnotes', action='store_true',
+                        help='Converts footnotes, currently only wordpress.org/plugins/footnotes/ is supported.')
     parser.add_argument('--endnotes', action='store_true', help='if given, use endnotes instead of footnotes')
-    parser.add_argument('--first-letter-before', help='latex code to be put before the first letter of [wp2latex-post-content] in single_post.tex template')
-    parser.add_argument('--first-letter-after', help='latex code to be put after first letter of [wp2latex-post-content]')
-    parser.add_argument('--project-template', help='must be supplied if url is a category, creates whole latex project instead of single output file')
+    parser.add_argument('--first-letter-before',
+                        help='latex code to be put before the first letter of [wp2latex-post-content] in '
+                             'single_post.tex template')
+    parser.add_argument('--first-letter-after',
+                        help='latex code to be put after first letter of [wp2latex-post-content]')
+    parser.add_argument('--project-template',
+                        help='must be supplied if url is a category, creates whole latex project instead of single '
+                             'output file')
     parser.add_argument('--output')
     parser.add_argument('--convert-links-to-citations', action='store_true')
     parser.add_argument('--unnumbered-headings', action='store_true')
@@ -24,26 +40,17 @@ def cli_main():
 
     if len(args.uris) > 1 or wp_import.check_if_url_is_category(args.uris[0]):
         if not args.project_template:
-            print("Error: Project template required if more than one uri supplied!")
+            print("Error: Project template required if more than one uri or uri of category supplied!")
             exit(-1)
 
         # Generate output path
-        output_path = ""
         if args.output:
             output_path = args.output
         else:
-            if not os.path.exists("output"):
-                output_path = "output"
-            else:
-                x = 1
-                while os.path.exists("output_" + str(x)):
-                    x = x + 1
+            output_path = find_free_path("output")
 
-                output_path = "output_" + str(x)
-
-            # Copy project template to output
-            shutil.copytree(args.project_template, output_path)
-
+        # Copy project template to output
+        shutil.copytree(args.project_template, output_path)
         posts_directory = output_path + "/posts"
         if not os.path.exists(posts_directory):
             os.makedirs(posts_directory)
@@ -85,18 +92,10 @@ def cli_main():
         host, slug = wp_import.get_host_slug_from_url(args.uris[0])
         post_in_latex = wp_import.generate_post(wp_import.import_post(host, slug, args), args)
 
-        output_path = ""
         if args.output:
             output_path = args.output
         else:
-            if not os.path.exists("output.tex"):
-                output_path = "output.tex"
-            else:
-                x = 1
-                while os.path.exists("output_" + str(x) + ".tex"):
-                    x = x + 1
-
-                output_path = "output_" + str(x) + ".tex"
+            output_path = find_free_path("output", ".tex")
 
         with open(output_path, "x", encoding="utf-8") as f:
             f.write(post_in_latex)
@@ -104,19 +103,12 @@ def cli_main():
         print("Saved post to " + output_path)
 
         if len(my_globals.biblatex_entries) > 0:
-            bib_output_path = "bibliography.bib"
-            if os.path.exists("bibliography.bib"):
-                x = 1
-                while os.path.exists("bibliography_" + str(x) + ".bib"):
-                    x = x + 1
-
-                bib_output_path = "bibliography_" + str(x) + ".bib"
-
+            bib_output_path = find_free_path("bibliography", ".bib")
 
             with open(bib_output_path, "x") as f:
                 f.write(my_globals.biblatex_entries)
 
-            print("Saved bibliography as "+bib_output_path)
+            print("Saved bibliography as " + bib_output_path)
 
 
 if __name__ == '__main__':
