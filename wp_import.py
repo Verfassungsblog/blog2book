@@ -55,8 +55,6 @@ def import_post(host, slug, args):
     raw_html = soup.__str__()
     result = pypandoc.convert_text(raw_html, 'tex', format='html', extra_args=["--shift-heading-level-by=-1"])
 
-    result = result.replace("\\%", "%")
-
     if args.with_footnotes:
         for footnote_count in range(len(footnotes_dict) - 1, -1, -1):
             command_start = ""
