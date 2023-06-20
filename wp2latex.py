@@ -32,7 +32,7 @@ def cli_main():
                              'output file')
     parser.add_argument('--output')
     parser.add_argument('--convert-links-to-citations', action='store_true')
-    parser.add_argument('--unnumbered-headings', action='store_true')
+    parser.add_argument('--fix-sections', action='store_true')
     parser.add_argument('--cite-command', default="\\footfullcite")
     parser.add_argument('--translation-server', default="https://translation-server.anghenfil.de")
     parser.add_argument('uris', nargs='+')

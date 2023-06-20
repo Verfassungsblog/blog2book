@@ -4,8 +4,6 @@ from bs4 import BeautifulSoup
 import pypandoc
 import re
 import link_citation_converter
-import uuid
-import my_globals
 
 
 def import_post(host, slug, args):
@@ -76,41 +74,14 @@ def import_post(host, slug, args):
     if args.first_letter_after or args.first_letter_before:
         result = first_letter + " " + result[1:]
 
+    if args.fix_sections:
+        result = fix_sections(result)
+
     if args.convert_links_to_citations:
-        pattern = r'\\href\{([^}]+)\}\{([^}]+)\}'
-        links = re.findall(pattern, result)
-
-        for link in links:
-            url = link[0]
-            link_text = link[1]
-            print("URL:", url)
-            print("Link-Text:", link_text)
-            biblatex_entry = link_citation_converter.convert_link_to_bibtex(url, args.translation_server)
-            if not biblatex_entry:
-                print("Couldn't convert Link " + url + " to Citation!")
-                continue
-
-            new_biblatex_uuid = uuid.uuid4()
-            while new_biblatex_uuid in my_globals.biblatex_uuids:
-                new_biblatex_uuid = uuid.uuid4()
-
-            my_globals.biblatex_uuids.append(new_biblatex_uuid)
-
-            biblatex_id_pattern = r"@\w+{([^,]+)"
-            biblatex_id_raw = re.search(biblatex_id_pattern, str(biblatex_entry))
-            if not biblatex_id_raw:
-                print("Couldn't convert Link " + url + " to Citation!")
-                continue
-
-            old_biblatex_id = biblatex_id_raw.group(1)
-            biblatex_entry = biblatex_entry.replace(old_biblatex_id, str(new_biblatex_uuid))
-            my_globals.biblatex_entries += str(biblatex_entry)
-            result = result.replace("\\href{" + url + "}{" + link_text + "}",
-                                    " " + link_text + args.cite_command+"{" + str(new_biblatex_uuid) + "}")
+        result = link_citation_converter.convert_links_to_citations(result, args)
 
     post_data["content"] = result
     return post_data
-
 
 def generate_post(post_data, args):
     post_template = ""
@@ -123,9 +94,9 @@ def generate_post(post_data, args):
 
     authors_string = authors_string[:-2]
     result = post_template.replace("[wp2latex-post-subtitle]", "") \
-        .replace("[wp2latex-post-title]", post_data["title"]) \
-        .replace("[wp2latex-post-authors]", authors_string) \
-        .replace("[wp2latex-post-url]", post_data["link"]) \
+        .replace("[wp2latex-post-title]", tex_escape(post_data["title"])) \
+        .replace("[wp2latex-post-authors]", tex_escape(authors_string)) \
+        .replace("[wp2latex-post-url]", tex_escape(post_data["link"])) \
         .replace("[wp2latex-post-content]", post_data["content"])
 
     # Add \printendnotes if endnotes activated and there is at least one endnote
@@ -191,3 +162,34 @@ def download_post(host, slug, args, posts_directory, post_count):
     post_in_latex = generate_post(import_post(host, slug, args), args)
     with open(posts_directory + "/post_" + str(post_count) + ".tex", "x", encoding="utf-8") as f:
         f.write(post_in_latex)
+
+
+def fix_sections(input_str):
+    regex = r"\\hypertarget\{[^}]+\}\{%\n\\section{\\texorpdfstring{\\textbf\{[^}]+\}}\{[^}]+\}\}\\label\{[^}]+\}}"
+    matches = re.findall(regex, input_str)
+
+    for match in matches:
+        old_section_command = match
+        regex2 = r"\\section{\\texorpdfstring{\\textbf{([^}]+)}}{[^}]+}}\\label{[^}]+}"
+        section_title = re.search(regex2, old_section_command).group(1)
+        input_str = input_str.replace(old_section_command, "\\section*{"+tex_escape(section_title)+"}")
+
+    return input_str
+
+def tex_escape(text):
+    conv = {
+        '&': r'\&',
+        '%': r'\%',
+        '$': r'\$',
+        '#': r'\#',
+        '_': r'\_',
+        '{': r'\{',
+        '}': r'\}',
+        '~': r'\textasciitilde{}',
+        '^': r'\^{}',
+        '\\': r'\textbackslash{}',
+        '<': r'\textless{}',
+        '>': r'\textgreater{}',
+    }
+    regex = re.compile('|'.join(re.escape(str(key)) for key in sorted(conv.keys(), key = lambda item: - len(item))))
+    return regex.sub(lambda match: conv[match.group()], text)
