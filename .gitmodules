@@ -1,0 +1,3 @@
+[submodule "verfassungsblog-templates"]
+	path = verfassungsblog-templates
+	url = https://github.com/Verfassungsblog/latex-templates.git

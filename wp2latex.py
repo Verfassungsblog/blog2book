@@ -30,12 +30,18 @@ def cli_main():
     parser.add_argument('--project-template',
                         help='must be supplied if url is a category, creates whole latex project instead of single '
                              'output file')
-    parser.add_argument('--output')
-    parser.add_argument('--convert-links-to-citations', action='store_true')
-    parser.add_argument('--fix-sections', action='store_true')
-    parser.add_argument('--cite-command', default="\\footfullcite")
-    parser.add_argument('--translation-server', default="https://translation-server.anghenfil.de")
-    parser.add_argument('--remove-ulines', action='store_true')
+    parser.add_argument('--output', help="specify custom output path")
+    parser.add_argument('--convert-links-to-citations', action='store_true', help="tries to convert all links in post "
+                                                                                  "to citations commands with biblatex")
+    parser.add_argument('--fix-sections', action='store_true', help="tries to correct sections commands, e.g. making "
+                                                                    "them unnumbered, remove textbfs in section "
+                                                                    "titles etc.")
+    parser.add_argument('--cite-command', default="\\footfullcite", help="Set command for citations, default is "
+                                                                         "\\footfullcite")
+    parser.add_argument('--translation-server', default="https://translation-server.anghenfil.de",
+                        help="Use different zotero translation server for automatic citation generation")
+    parser.add_argument('--remove-ulines', action='store_true', help="Removes uline commands from LaTeX output")
+    parser.add_argument('--zip', action='store_true', help="if set creates zip with latex project files")
     parser.add_argument('uris', nargs='+')
     args = parser.parse_args()
 
@@ -86,6 +92,10 @@ def cli_main():
         if len(my_globals.biblatex_entries) > 0:
             with open(output_path + "/bibliography.bib", "x") as f:
                 f.write(my_globals.biblatex_entries)
+
+        if args.zip:
+            zip_output_path = find_free_path("output", ".zip")
+            shutil.make_archive(zip_output_path, "zip", output_path)
 
 
     else:

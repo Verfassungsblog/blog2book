@@ -22,7 +22,7 @@ Convert single post to latex post, extracting footnotes, converting footnotes to
 
 Convert category with several posts to a book:
 ````
-./wp2latex --with-footnotes --endnotes --first-letter-before "\lettrine[nindent=0pt,findent=2pt,loversize=0.1]{" --first-letter-after "}{}\normalfont" --convert-links-to-citations --project-template "latex-templates/verfassungsbooks" --fix-sections --remove-ulines "https://verfassungsblog.de/category/debates/kleben-und-haften-ziviler-ungehorsam-in-der-klimakrise/"
+./wp2latex --with-footnotes --endnotes --first-letter-before "\lettrine[nindent=0pt,findent=2pt,loversize=0.1]{" --first-letter-after "}{}\normalfont" --convert-links-to-citations --project-template "verfassungsblog-templates/verfassungsbooks" --fix-sections --remove-ulines "https://verfassungsblog.de/category/debates/kleben-und-haften-ziviler-ungehorsam-in-der-klimakrise/"
 ````
 
 ## TODO-Liste
