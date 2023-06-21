@@ -28,3 +28,4 @@ Convert category with several posts to a book:
 ## TODO-Liste
 * Links die nicht automatisch zitiert werden konnten irgendwie kenntlich machen
 * improve first letter detection
+* automatically create zip file of output directory

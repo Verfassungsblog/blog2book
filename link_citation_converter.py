@@ -60,6 +60,6 @@ def convert_links_to_citations(input_str, args):
         biblatex_entry = biblatex_entry.replace(old_biblatex_id, str(new_biblatex_uuid))
         my_globals.biblatex_entries += str(biblatex_entry)
         input_str = input_str.replace("\\href{" + url + "}{" + link_text + "}",
-                                      " " + wp_import.tex_escape(link_text) + args.cite_command + "{" + str(
+                                      " " + link_text + args.cite_command + "{" + str(
                                           new_biblatex_uuid) + "}")
     return input_str
