@@ -80,6 +80,9 @@ def import_post(host, slug, args):
     if args.convert_links_to_citations:
         result = link_citation_converter.convert_links_to_citations(result, args)
 
+    if args.remove_ulines:
+        result = result.replace("\\uline", "")
+
     post_data["content"] = result
     return post_data
 
@@ -173,6 +176,8 @@ def fix_sections(input_str):
         regex2 = r"\\section{\\texorpdfstring{\\textbf{([^}]+)}}{[^}]+}}\\label{[^}]+}"
         section_title = re.search(regex2, old_section_command).group(1)
         input_str = input_str.replace(old_section_command, "\\section*{"+tex_escape(section_title)+"}")
+
+    input_str = input_str.replace("\\section{", "\\section*{")
 
     return input_str
 
