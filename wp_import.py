@@ -104,7 +104,7 @@ def generate_post(post_data, args):
 
     # Add \printendnotes if endnotes activated and there is at least one endnote
     if args.endnotes and (result.find("\\endnote") != -1 or result.find(args.cite_command) != -1):
-        result = result.replace("[wp2latex-print-endnotes-if-any]", "\\printendnotes")
+        result = result.replace("[wp2latex-print-endnotes-if-any]", "\\pagebreak\\printendnotes")
     else:
         result = result.replace("[wp2latex-print-endnotes-if-any]", "")
 

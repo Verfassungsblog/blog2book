@@ -94,8 +94,7 @@ def cli_main():
                 f.write(my_globals.biblatex_entries)
 
         if args.zip:
-            zip_output_path = find_free_path("output", ".zip")
-            shutil.make_archive(zip_output_path, "zip", output_path)
+            shutil.make_archive(output_path, "zip", output_path)
 
 
     else:
