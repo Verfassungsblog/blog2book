@@ -12,7 +12,7 @@ def convert_link_to_bibtex(link, translation_server):
     print("Trying to get citation for link \"" + link + "\".")
     try:
         api_res = requests.post(translation_server + "/web", data=link, headers={'Content-type': 'text/plain'},
-                                timeout=3.5)
+                                timeout=6)
     except ReadTimeout:
         print("Timeout.")
         return False
