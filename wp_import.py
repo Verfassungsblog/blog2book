@@ -6,18 +6,10 @@ import re
 import link_citation_converter
 
 
-def import_post(host, slug, args):
-    print("Slug for post is " + slug + ", host is " + host + ". Trying to get post from API.")
-
-    post = requests.get("https://" + host + "/wp-json/wp/v2/posts?slug=" + slug)
-
-    if post.status_code != 200:
-        print("Couldn't get post from API!")
-        return
-
+def convert_post_json(post_json, args):
     post_data = {}
 
-    json = post.json()[0]
+    json = post_json
     post_data["title"] = json["title"]["rendered"]
     if json["date"]:
         post_data["date"] = json["date"]
@@ -31,7 +23,9 @@ def import_post(host, slug, args):
     if json["acf"]["subheadline"]:
         post_data["subtitle"] = json["acf"]["subheadline"]
 
-    print(post_data)
+    if json["acf"]["doi"]:
+        post_data["doi"] = json["acf"]["doi"]
+
     raw_content = json["content"]["rendered"]
 
     soup = BeautifulSoup(raw_content, 'html.parser')
@@ -56,7 +50,6 @@ def import_post(host, slug, args):
 
     raw_html = soup.__str__()
     result = pypandoc.convert_text(raw_html, 'tex', format='html', extra_args=["--shift-heading-level-by=-1"])
-    print(result)
 
     if args.with_footnotes:
         for footnote_count in range(len(footnotes_dict) - 1, -1, -1):
@@ -88,13 +81,31 @@ def import_post(host, slug, args):
     if args.remove_ulines:
         result = result.replace("\\uline", "")
 
+    result = re.sub(r"(?<!\n)\n(?!\n)", " ", result)
     post_data["content"] = result
     return post_data
 
 
+def import_post(host, slug, args):
+    print("Slug for post is " + slug + ", host is " + host + ". Trying to get post from API.")
+
+    post = requests.get("https://" + host + "/wp-json/wp/v2/posts?slug=" + slug)
+
+    if post.status_code != 200:
+        print("Couldn't get post from API!")
+        return
+
+    return convert_post_json(post.json()[0], args)
+
+
 def generate_post(post_data, args):
     post_template = ""
-    with open("latex-templates/single_post.tex", 'r', encoding="utf-8") as f:
+    if args.single_post_template:
+        template_path = args.single_post_template
+    else:
+        template_path = "latex-templates/single_post.tex"
+
+    with open(template_path, 'r', encoding="utf-8") as f:
         post_template = f.read()
 
     authors_string = ""
@@ -102,11 +113,20 @@ def generate_post(post_data, args):
         authors_string += author + ", "
 
     authors_string = authors_string[:-2]
-    result = post_template.replace("[wp2latex-post-subtitle]", tex_escape(post_data["subtitle"])) \
-        .replace("[wp2latex-post-title]", tex_escape(post_data["title"])) \
+    result = post_template.replace("[wp2latex-post-title]", tex_escape(post_data["title"])) \
         .replace("[wp2latex-post-authors]", tex_escape(authors_string)) \
         .replace("[wp2latex-post-url]", tex_escape(post_data["link"])) \
         .replace("[wp2latex-post-content]", post_data["content"])
+
+    if "subtitle" in post_data:
+        result = result.replace("[wp2latex-post-subtitle]", tex_escape(post_data["subtitle"]))
+    else:
+        result = result.replace("[wp2latex-post-subtitle]", "")
+
+    if "doi" in post_data:
+        result = result.replace("[wp2latex-post-doi]", tex_escape(post_data["doi"]))
+    else:
+        result = result.replace("[wp2latex-post-doi]", "")
 
     # Add \printendnotes if endnotes activated and there is at least one endnote
     if args.endnotes and (result.find("\\endnote") != -1 or result.find(args.cite_command) != -1):
@@ -147,23 +167,58 @@ def get_category_id_from_slug(host, slug):
         print("Couldn't get category id for URL from API!")
         return
 
-    print(category.json())
     return category.json()[0]["id"]
 
 
-def get_post_slugs_in_category(host, category_id):
-    posts = requests.get("https://" + host + "/wp-json/wp/v2/posts?categories=" + str(category_id) + "&per_page=100")
+def get_all_posts(host, categories, exclude_categories, after, before, page=1):
+    query = "https://" + host + "/wp-json/wp/v2/posts"
+    first_argument = True
 
-    if posts.status_code != 200:
-        print("Couldn't get posts in category from API!")
-        return
+    if categories:
+        query += "?categories=" + str(categories)
+        first_argument = False
+    if exclude_categories:
+        if first_argument:
+            query += "?"
+            first_argument = False
+        else:
+            query += "&"
 
-    post_slugs = []
+        query += "categories_exclude=" + str(exclude_categories)
+    if before:
+        if first_argument:
+            query += "?"
+            first_argument = False
+        else:
+            query += "&"
 
-    for post in posts.json():
-        post_slugs.append(post["slug"])
+        query += "before=" + str(before)
+    if after:
+        if first_argument:
+            query += "?"
+            first_argument = False
+        else:
+            query += "&"
 
-    return post_slugs
+        query += "after=" + str(after)
+
+    if first_argument:
+        query += "?per_page=100&page=" + str(page)
+    else:
+        query += "&per_page=100&page=" + str(page)
+
+    print("Doing request to API target " + query)
+    raw_posts = requests.get(query)
+    if requests.status_codes != 200:
+        print("Couldn't get posts from API: " + raw_posts.text)
+
+    total_pages = int(raw_posts.headers.get("X-WP-TotalPages"))
+
+    posts = raw_posts.json()
+
+    if page < total_pages:
+        posts += get_all_posts(host, categories, after, before, page + 1)
+    return posts
 
 
 def download_post(host, slug, args, posts_directory, post_count):
