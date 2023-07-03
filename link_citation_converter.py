@@ -8,7 +8,6 @@ import wp_import
 
 
 def convert_link_to_bibtex(link, translation_server):
-    link = link.replace("\\%", "%")
     print("Trying to get citation for link \"" + link + "\".")
     try:
         api_res = requests.post(translation_server + "/web", data=link, headers={'Content-type': 'text/plain'},
@@ -39,7 +38,7 @@ def convert_links_to_citations(input_str, args):
         link_text = link[1]
         print("URL:", url)
         print("Link-Text:", link_text)
-        biblatex_entry = convert_link_to_bibtex(url, args.translation_server)
+        biblatex_entry = convert_link_to_bibtex(wp_import.tex_unescape(url), args.translation_server)
         if not biblatex_entry:
             print("Couldn't convert Link " + url + " to Citation!")
             continue

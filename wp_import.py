@@ -28,6 +28,10 @@ def import_post(host, slug, args):
             authors.append(author["display_name"])
         post_data["authors"] = authors
 
+    if json["acf"]["subheadline"]:
+        post_data["subtitle"] = json["acf"]["subheadline"]
+
+    print(post_data)
     raw_content = json["content"]["rendered"]
 
     soup = BeautifulSoup(raw_content, 'html.parser')
@@ -52,6 +56,7 @@ def import_post(host, slug, args):
 
     raw_html = soup.__str__()
     result = pypandoc.convert_text(raw_html, 'tex', format='html', extra_args=["--shift-heading-level-by=-1"])
+    print(result)
 
     if args.with_footnotes:
         for footnote_count in range(len(footnotes_dict) - 1, -1, -1):
@@ -86,6 +91,7 @@ def import_post(host, slug, args):
     post_data["content"] = result
     return post_data
 
+
 def generate_post(post_data, args):
     post_template = ""
     with open("latex-templates/single_post.tex", 'r', encoding="utf-8") as f:
@@ -96,7 +102,7 @@ def generate_post(post_data, args):
         authors_string += author + ", "
 
     authors_string = authors_string[:-2]
-    result = post_template.replace("[wp2latex-post-subtitle]", "") \
+    result = post_template.replace("[wp2latex-post-subtitle]", tex_escape(post_data["subtitle"])) \
         .replace("[wp2latex-post-title]", tex_escape(post_data["title"])) \
         .replace("[wp2latex-post-authors]", tex_escape(authors_string)) \
         .replace("[wp2latex-post-url]", tex_escape(post_data["link"])) \
@@ -175,11 +181,12 @@ def fix_sections(input_str):
         old_section_command = match
         regex2 = r"\\section{\\texorpdfstring{\\textbf{([^}]+)}}{[^}]+}}\\label{[^}]+}"
         section_title = re.search(regex2, old_section_command).group(1)
-        input_str = input_str.replace(old_section_command, "\\section*{"+tex_escape(section_title)+"}")
+        input_str = input_str.replace(old_section_command, "\\section*{" + tex_escape(section_title) + "}")
 
     input_str = input_str.replace("\\section{", "\\section*{")
 
     return input_str
+
 
 def tex_escape(text):
     conv = {
@@ -196,5 +203,24 @@ def tex_escape(text):
         '<': r'\textless{}',
         '>': r'\textgreater{}',
     }
-    regex = re.compile('|'.join(re.escape(str(key)) for key in sorted(conv.keys(), key = lambda item: - len(item))))
+    regex = re.compile('|'.join(re.escape(str(key)) for key in sorted(conv.keys(), key=lambda item: - len(item))))
+    return regex.sub(lambda match: conv[match.group()], text)
+
+
+def tex_unescape(text):
+    conv = {
+        '\&': r'&',
+        '\%': r'%',
+        '\$': r'$',
+        '\#': r'#',
+        '\_': r'_',
+        '\{': r'{',
+        '\}': r'}',
+        '\\textasciitilde{}': r'~',
+        '\^{}': r'^',
+        '\\textbackslash{}': r'\\',
+        '\\textless{}': r'<',
+        '\\textgreater{}': r'>',
+    }
+    regex = re.compile('|'.join(re.escape(str(key)) for key in sorted(conv.keys(), key=lambda item: - len(item))))
     return regex.sub(lambda match: conv[match.group()], text)
