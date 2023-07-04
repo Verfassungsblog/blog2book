@@ -53,6 +53,7 @@ def cli_main():
     parser.add_argument('--before', help="used together with all-posts - only posts before specified date. "
                                              "Specify date as YYYY-MM-DD.")
     parser.add_argument('--exclude-categories', help="used together with all-posts - all posts except those in categories")
+    parser.add_argument('--exclude-categories-recursive', action='store_true', help='if set also excludes children categories for given categories')
     parser.add_argument('--single-post-template')
     parser.add_argument('uris', nargs='+')
     args = parser.parse_args()
@@ -79,7 +80,7 @@ def cli_main():
 
         if args.all_posts:
             print("Trying to download all posts from host " + args.uris[0])
-            posts = wp_import.get_all_posts(args.uris[0], args.limit_to_categories, args.exclude_categories, args.after, args.before)
+            posts = wp_import.get_all_posts(args.uris[0], args.limit_to_categories, args.exclude_categories, args.after, args.before, args.exclude_categories_recursive)
             for post in posts:
                 converted_post = wp_import.convert_post_json(post, args)
                 post_in_latex = wp_import.generate_post(converted_post, args)
@@ -96,7 +97,7 @@ def cli_main():
                     host, slug = wp_import.get_category_host_slug_from_url(url)
                     category_id = wp_import.get_category_id_from_slug(host, slug)
 
-                    posts = wp_import.get_all_posts(host, category_id, None, None)
+                    posts = wp_import.get_all_posts(host, category_id, None, None, None)
 
                     for post in posts:
                         converted_post = wp_import.convert_post_json(post, args)
